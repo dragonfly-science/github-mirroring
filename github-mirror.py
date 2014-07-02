@@ -32,9 +32,16 @@ def gitcmd(args, cwd, msg, quiet=False):
 
 def getargs():
     'Get command line arguments'
-    parser = argparse.ArgumentParser()
-    parser.add_argument('organisation',
-                        help='github.com organisation to mirror')
+    parser = argparse.ArgumentParser(
+        description='''Mirror repositories from github.com
+
+                       It is possible to specify a combination of entity,
+                       github-access, and repository-type that not valid. If you
+                       are having trouble check
+                       https://developer.github.com/v3/repos/#list-your-repositories
+                    ''')
+    parser.add_argument('entity',
+                        help='github.com entity (organisation or user) to mirror')
     parser.add_argument('--repo',
                         help='github.com repo to mirror')
     parser.add_argument('--mirror-host', '-m',
@@ -44,7 +51,7 @@ def getargs():
                         choices=['gitolite'],
                         help='mirror type [gitolite]')
     parser.add_argument('--repository-type', '-r',
-                        choices=['private', 'public', 'all'],
+                        choices=['private', 'public', 'all', 'owner'],
                         default='private',
                         help='type of repositories to mirror [private]')
     parser.add_argument('--working-directory', '-d',
@@ -62,9 +69,14 @@ def getargs():
                         default='push',
                         nargs='+',
                         help='events to trigger github webhooks on [push]')
+    parser.add_argument('--github-access', '-a',
+                        choices=['org', 'user'],
+                        default='org',
+                        help='Access user or organisation repositories [org]')
     parser.add_argument('--quiet', '-q',
                         action='store_true',
                         help="run will minimal messages")
+
     return parser.parse_args()
 
 
@@ -105,7 +117,15 @@ def get_github_repositories(args):
             raise MirrorError(
                 'The environment vairable GITHUB_OAUTH_TOKEN must be set access private repositories')
         payload['access_token'] = TOKEN
-    url = 'https://api.github.com/orgs/%s/repos' % args.organisation
+    if args.github_access != 'user':
+        target = 'orgs/%s' % args.entity
+    else:
+        if TOKEN:
+            target = 'user'
+        else:
+            target = 'users/%s' % args.entity
+    url = 'https://api.github.com/%s/repos' % target
+    print(url, payload)
     req = requests.get(url, params=payload)
     if req.status_code != 200:
         raise MirrorError('Getting list of repositories failed')
@@ -173,8 +193,8 @@ def install_webhook(repo, args):
 
 
 if __name__ == '__main__':
-    args = getargs()
     try:
+        args = getargs()
         setup(args)
         repos = get_github_repositories(args)
 
