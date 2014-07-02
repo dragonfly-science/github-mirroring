@@ -125,7 +125,6 @@ def get_github_repositories(args):
         else:
             target = 'users/%s' % args.entity
     url = 'https://api.github.com/%s/repos' % target
-    print(url, payload)
     req = requests.get(url, params=payload)
     if req.status_code != 200:
         raise MirrorError('Getting list of repositories failed')
