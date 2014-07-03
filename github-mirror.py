@@ -197,19 +197,29 @@ def install_webhook(repo, args):
         raise MirrorError(
             'Set GITHUB_OAUTH_TOKEN environment variable to add a webhook')
     api_url = repo['hooks_url']
-    hook_data = {
-        "name": "web",
-        "active": True,
-        "events": args.webhook_events,
-        "config": {
-            "url": args.webhook_url,
-            "content_type": args.webhook_content_type
+
+    # See if the hook has already been installed
+    req = requests.get(api_url, params={'access_token': TOKEN})
+    if req.status_code != 200:
+        raise MirrorError('Problem fetching hook list')
+    hooks = filter(
+        lambda x: x['config']['url'] == args.webhook_url,
+        json.loads(req.content)
+    )
+    if len(hooks) == 0:
+        hook_data = {
+            "name": "web",
+            "active": True,
+            "events": args.webhook_events,
+            "config": {
+                "url": args.webhook_url,
+                "content_type": args.webhook_content_type
+            }
         }
-    }
-    req = requests.post(
-        api_url, params={'access_token': TOKEN}, data=json.dumps(hook_data))
-    if req.status_code != 201:
-        raise MirrorError('Webhook installation failed')
+        req = requests.post(
+            api_url, params={'access_token': TOKEN}, data=json.dumps(hook_data))
+        if req.status_code != 201:
+            raise MirrorError('Webhook installation failed')
 
 
 def get_github_wiki_url(url, name, args):
