@@ -17,7 +17,7 @@ To get started, clone the repository and run `python github-mirror.py -h` for us
 3. `cd github-mirroring` change into the source directory (or copy the script where you like)
 4. `python github-mirror.py -h` run with the help flag for usage information
 
-In order for it to access the repositories, the GitHub access token for the account needs to be set as the environment variable `GITHUB_OAUTH_TOKEN`. 
+In order for it to access private repositories, the GitHub access token for the account needs to be set as the environment variable `GITHUB_OAUTH_TOKEN`. 
 
 Minimal examples
 =================
