@@ -3,14 +3,14 @@ GitHub mirroring
 
 A simple python script to mirror all of an organization's GitHub repositories.
 
-This script was designed to keep our local Gitolite server in sync with
-repositories, but it will also let you just archive your GitHub repositories
+This script was designed to copy all commits from GitHub to our local Gitolite server, so we always have a full
+archive of our GitHub account, but it will also let you just archive your GitHub repositories
 locally. There is a more background in this [Medium post](https://medium.com/dragonfly-data-science/23002a10aefc).
 
 Getting started
 ===============
 
-To get started, clone the repository and run `python github-mirror.py -h` for usage information. The only additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html).
+To get started, clone the repository and run `python github-mirror.py -h` for usage information. The only additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html). More specifically:
 
 1. `git clone https://github.com/dragonfly-science/github-mirroring.git` to get the code
 2. `pip install requests` to install dependencies
