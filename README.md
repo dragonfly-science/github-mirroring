@@ -27,7 +27,7 @@ Minimal examples
 
 `python github-mirror.py yourname -a user --repository-type=public`
 
-### Backup your private repositories to local storage
+### Backup your organisations private repositories to local storage
 
 `GITHUB_OAUTH_TOKEN=becb84bde335a242707af71dae41a24f python github-mirror.py yourorganisation`
 
