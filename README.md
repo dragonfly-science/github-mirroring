@@ -2,7 +2,7 @@ Github mirroring
 ================
 
 Simple python script to mirror all of an organization's github repositories.
-In addition additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html)
+The only additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html)
 
 
 This script was designed to keep our local gitolite server in sync with
