@@ -165,6 +165,7 @@ def create_new_gitolite_repo(name, args):
             if conf.read() != '\n':
                 conf.write('\n')
             conf.seek(0, 2)
+            name = re.sub('.git$', '', name)
             conf.write('\nrepo    %s\n    RW+  = @dragonfly\n' % name)
         gitcmd('add conf/gitolite.conf',
                admin_dir,
