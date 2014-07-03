@@ -9,3 +9,7 @@ repositories on our github account so that we can confidently remove old
 projects from github.
 
 See this medium post for details -
+
+Every effort has been made to make the script work in a range of situations, however
+it has only been rigoursly tested in our specific usecase - mirroring an organisation's
+private repositories to a local gitolite mirror.
