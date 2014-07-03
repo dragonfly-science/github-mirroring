@@ -7,6 +7,7 @@ import requests
 import json
 import sys
 import shlex
+import re
 from os.path import join, exists, isdir
 from os import environ, mkdir
 from subprocess import Popen, PIPE
@@ -133,42 +134,62 @@ def get_github_repositories(args):
 
 def create_new_gitolite_repo(name, args):
     'Creates a new repository on code.dragonfly.co.nz'
-    admin_dir = join(args.working_directory, 'gitolite-admin')
-    gitcmd('pull origin master',
-           admin_dir,
-           'Pulling most recent gitolite admin',
-           True)
-    with open(join(admin_dir, 'conf', 'gitolite.conf'), 'r+') as conf:
-        conf.seek(-1, 2)
-        if conf.read() != '\n':
-            conf.write('\n')
-        conf.seek(0, 2)
-        conf.write('\nrepo    %s\n    RW+  = @dragonfly\n' % name)
-    gitcmd('add conf/gitolite.conf',
-           admin_dir,
-           'Updating gitolite config file',
-           True)
-    gitcmd('commit -m "added %s"' % name,
-           admin_dir,
-           'Updating gitolite config file',
-           args.quiet)
-    gitcmd('push origin master',
-           admin_dir,
-           'Pushing updated gitolite condig',
-           True)
+    gitolite_repo = '%s:%s' % (args.mirror_host, name)
+    try:
+        gitcmd('ls-remote %s' % gitolite_repo,
+               args.working_directory,
+               'Checking to see if %s exists on %s' % (
+                   name, args.mirror_host)
+               )
+    except MirrorError:
+        admin_dir = join(args.working_directory, 'gitolite-admin')
+        gitcmd('pull origin master',
+               admin_dir,
+               'Pulling most recent gitolite admin',
+               True)
+        with open(join(admin_dir, 'conf', 'gitolite.conf'), 'r+') as conf:
+            conf.seek(-1, 2)
+            if conf.read() != '\n':
+                conf.write('\n')
+            conf.seek(0, 2)
+            conf.write('\nrepo    %s\n    RW+  = @dragonfly\n' % name)
+        gitcmd('add conf/gitolite.conf',
+               admin_dir,
+               'Updating gitolite config file',
+               True)
+        gitcmd('commit -m "added %s"' % name,
+               admin_dir,
+               'Updating gitolite config file',
+               args.quiet)
+        gitcmd('push origin master',
+               admin_dir,
+               'Pushing updated gitolite condig',
+               True)
 
 
-def update_mirror(name, args):
+def update_mirror(name, args, wiki=False):
     wdir = join(repo_dir(args), name + '.git')
+    wikidir = join(repo_dir(args), name + '.wiki.git')
     gitcmd('fetch -p origin',
            wdir,
            'Fetching latest version of %s from github' % name,
            args.quiet)
+    if wiki:
+        gitcmd('fetch -p origin',
+               wikidir,
+               'Fetching latest version of %s wiki from github' % name,
+               args.quiet)
+
     if args.mirror_host and args.mirror_type == 'gitolite':
         gitcmd('push --mirror',
                wdir,
                'Pushing latest version of %s from github to gitolite' % name,
                args.quiet)
+        if wiki:
+            gitcmd('push --mirror',
+                   wikidir,
+                   'Pushing latest version of %s wiki from github to gitolite' % name,
+                   args.quiet)
 
 
 def install_webhook(repo, args):
@@ -191,57 +212,78 @@ def install_webhook(repo, args):
         raise MirrorError('Webhook installation failed')
 
 
+def get_github_wiki_url(url, name, args):
+    wiki_url = re.sub('.git$', '.wiki.git', url)
+    try:
+        gitcmd('ls-remote %s' % wiki_url,
+               '.',
+               'Checking for %s wiki' % name,
+               args.quiet)
+    except MirrorError:
+        return None
+    return wiki_url
+
+
+def local_repo(name, args):
+    return exists(join(repo_dir(args), name + '.git'))
+
+
 if __name__ == '__main__':
     try:
         args = getargs()
         setup(args)
         repos = get_github_repositories(args)
 
-        # create any new repositories
-        new_repos = filter(lambda x: not exists(
-            join(repo_dir(args), x['name'] + '.git')), repos)
-        for repo in new_repos:
-            barename = repo['name'] + '.git'
+        if args.repo:
+            repos = filter(lambda x: x['name'] == args.repo, repos)
 
-            # check to see if a new repository needs to be created
+        # create any new repositories
+        for repo in repos:
+            # add token to clone url
+            clone_url = repo['clone_url']
+            if TOKEN and args.repository_type != 'public':
+                clone_url = clone_url.replace(
+                    'https://', 'https://%s@' % TOKEN)
+            wiki_url = get_github_wiki_url(clone_url, repo['name'], args)
+
+            # check to see if a new mirror repository needs to be created
             if args.mirror_host and args.mirror_type == 'gitolite':
-                gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'])
-                try:
-                    gitcmd('ls-remote %s' % gitolite_repo,
-                           args.working_directory,
-                           'Checking to see if %s exists on %s' % (
-                               repo['name'], args.mirror_host)
-                           )
-                except MirrorError:
-                    create_new_gitolite_repo(barename, args)
+                create_new_gitolite_repo(repo['name'] + '.git', args)
+
+                if wiki_url:
+                    create_new_gitolite_repo(repo['name'] + '.wiki.git', args)
 
             # install the webhook if required
             if args.webhook_url:
                 install_webhook(repo, args)
 
-            # clone a mirror from github
-            clone_url = repo['clone_url']
-            if TOKEN and args.repository_type != 'public':
-                clone_url = clone_url.replace(
-                    'https://', 'https://%s@' % TOKEN)
-            gitcmd('clone --mirror %s' % clone_url,
-                   repo_dir(args),
-                   'Mirror cloning %s from github.com' % repo['full_name'],
-                   args.quiet)
+            if not local_repo(repo['name'] + '.git', args):
+                # clone a mirror from github
+                gitcmd('clone --mirror %s' % clone_url,
+                       repo_dir(args),
+                       'Mirror cloning %s from github.com' % repo['full_name'],
+                       args.quiet)
+                if args.mirror_host and args.mirror_type == 'gitolite':
+                    gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'] + '.git')
+                    gitcmd('remote set-url --push origin %s' % gitolite_repo,
+                           join(repo_dir(args), repo['name'] + '.git'),
+                           'Setting gitolite repository as push mirror for %s' % repo['name'],
+                           args.quiet)
 
-            if args.mirror_host and args.mirror_type == 'gitolite':
-                gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'])
-                wdir = join(repo_dir(args), repo['name'] + '.git')
-                gitcmd('remote set-url --push origin %s' % gitolite_repo,
-                       wdir,
-                       'Setting gitolite repository as push mirror for %s' % repo['name'],
+            if wiki_url and not local_repo(repo['name'] + '.wiki.git', args):
+                gitcmd('clone --mirror %s' % wiki_url,
+                       repo_dir(args),
+                       'Mirror cloning wiki for %s from github.com' % repo['full_name'],
                        args.quiet)
 
-        if args.repo:
-            update_mirror(args.repo, args)
-        else:
-            for repo in repos:
-                update_mirror(repo['name'], args)
+                if args.mirror_host and args.mirror_type == 'gitolite':
+                    gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'] + '.wiki.git')
+                    gitcmd('remote set-url --push origin %s' % gitolite_repo,
+                           join(repo_dir(args), repo['name'] + '.wiki.git'),
+                           'Setting gitolite repository as push mirror for %s wiki' % repo['name'],
+                           args.quiet)
+
+            update_mirror(repo['name'], args, wiki_url is not None)
 
     except MirrorError as e:
         print("ERROR:", e, file=sys.stderr)
