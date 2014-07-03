@@ -12,7 +12,8 @@ from os.path import join, exists, isdir
 from os import environ, mkdir
 from subprocess import Popen, PIPE
 from threading import Thread
-from Queue import Queue, Empty
+from Queue import Queue
+from itertools import izip_longest
 
 TOKEN = environ[
     'GITHUB_OAUTH_TOKEN'] if 'GITHUB_OAUTH_TOKEN' in environ else None
@@ -20,6 +21,12 @@ TOKEN = environ[
 
 class MirrorError(RuntimeError):
     pass
+
+
+# http://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks-in-python
+def grouper(n, iterable, padvalue=None):
+    "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
+    return izip_longest(*[iter(iterable)] * n, fillvalue=padvalue)
 
 
 def gitcmd(args, cwd, msg, quiet=False):
@@ -79,6 +86,10 @@ def getargs():
     parser.add_argument('--quiet', '-q',
                         action='store_true',
                         help="run with minimal messages")
+    parser.add_argument('--max-threads',
+                        default=8,
+                        type=int,
+                        help='maximum number of job threads')
 
     return parser.parse_args()
 
@@ -205,7 +216,8 @@ def install_webhook(repo, args):
     if req.status_code != 200:
         raise MirrorError('Problem fetching hook list')
     hooks = filter(
-        lambda x: 'url' in x['config'] and x['config']['url'] == args.webhook_url,
+        lambda x: 'url' in x['config'] and x[
+            'config']['url'] == args.webhook_url,
         json.loads(req.content)
     )
     if len(hooks) == 0:
@@ -270,20 +282,24 @@ def mirror_repo(repo, args, msgs):
                 gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'] + '.git')
                 gitcmd('remote set-url --push origin %s' % gitolite_repo,
                        join(repo_dir(args), repo['name'] + '.git'),
-                       'Setting gitolite repository as push mirror for %s' % repo['name'],
+                       'Setting gitolite repository as push mirror for %s' % repo[
+                           'name'],
                        args.quiet)
 
         if wiki_url and not local_repo(repo['name'] + '.wiki.git', args):
             gitcmd('clone --mirror %s' % wiki_url,
                    repo_dir(args),
-                   'Mirror cloning wiki for %s from github.com' % repo['full_name'],
+                   'Mirror cloning wiki for %s from github.com' % repo[
+                       'full_name'],
                    args.quiet)
 
             if args.mirror_host and args.mirror_type == 'gitolite':
-                gitolite_repo = '%s:%s' % (args.mirror_host, repo['name'] + '.wiki.git')
+                gitolite_repo = '%s:%s' % (
+                    args.mirror_host, repo['name'] + '.wiki.git')
                 gitcmd('remote set-url --push origin %s' % gitolite_repo,
                        join(repo_dir(args), repo['name'] + '.wiki.git'),
-                       'Setting gitolite repository as push mirror for %s wiki' % repo['name'],
+                       'Setting gitolite repository as push mirror for %s wiki' % repo[
+                           'name'],
                        args.quiet)
 
         update_mirror(repo['name'], args, wiki_url is not None)
@@ -299,10 +315,14 @@ if __name__ == '__main__':
         if args.repo:
             repos = filter(lambda x: x['name'] == args.repo, repos)
 
-        tp = [Thread(target=mirror_repo, args=(repo, args, msgs)) for repo in repos]
-        map(lambda t: t.start(), tp)
-        map(lambda t: t.join(), tp)
-        # msgs.join()
+        # split list of repos into groups to limit the number of threads
+        repo_sets = grouper(args.max_threads, repos)
+        for repo_set in repo_sets:
+            tp = [Thread(target=mirror_repo, args=(repo, args, msgs))
+                  for repo in repo_set if repo]
+            map(lambda t: t.start(), tp)
+            map(lambda t: t.join(), tp)
+
         problems = []
         while not msgs.empty():
             problems.append(msgs.get_nowait())
