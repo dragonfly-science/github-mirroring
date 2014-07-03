@@ -5,7 +5,7 @@ A simple python script to mirror all of an organization's GitHub repositories.
 
 This script was designed to keep our local Gitolite server in sync with
 repositories, but it will also let you just archive your GitHub repositories
-locally. There is a more background in this [medium post](https://medium.com/dragonfly-data-science/23002a10aefc).
+locally. There is a more background in this [Medium post](https://medium.com/dragonfly-data-science/23002a10aefc).
 
 Getting started
 ===============
