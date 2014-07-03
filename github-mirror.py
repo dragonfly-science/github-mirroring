@@ -203,7 +203,7 @@ def install_webhook(repo, args):
     if req.status_code != 200:
         raise MirrorError('Problem fetching hook list')
     hooks = filter(
-        lambda x: x['config']['url'] == args.webhook_url,
+        lambda x: 'url' in x['config'] and x['config']['url'] == args.webhook_url,
         json.loads(req.content)
     )
     if len(hooks) == 0:
