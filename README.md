@@ -10,7 +10,7 @@ locally. There is a more background in this [medium post](https://medium.com/@vi
 Getting started
 ===============
 
-To get started clone the repository and run `python github-mirror.py -h` for usage information. The only additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html)
+To get started, clone the repository and run `python github-mirror.py -h` for usage information. The only additional dependency is [requests](http://docs.python-requests.org/en/latest/index.html).
 
 1. `git clone https://github.com/dragonfly-science/github-mirroring.git` to get the code
 2. `pip install requests` to install dependencies
@@ -23,11 +23,11 @@ token for the account needs to be set as the environment variable `GITHUB_OAUTH_
 Minimal examples
 =================
 
-## Backup up your public repositories to local storage
+### Backup up your public repositories to local storage
 
 `python github-mirror.py yourname -a user --repository-type=public`
 
-## Backup your private repositories to local storage
+### Backup your private repositories to local storage
 
 `GITHUB_OAUTH_TOKEN=becb84bde335a242707af71dae41a24f python github-mirror.py yourorganisation`
 
