@@ -235,7 +235,7 @@ def get_github_wiki_url(url, name, args):
 
 
 def local_repo(name, args):
-    return exists(join(repo_dir(args), name + '.git'))
+    return exists(join(repo_dir(args), name))
 
 
 if __name__ == '__main__':
