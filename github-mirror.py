@@ -76,7 +76,7 @@ def getargs():
                         help='Access user or organisation repositories [org]')
     parser.add_argument('--quiet', '-q',
                         action='store_true',
-                        help="run will minimal messages")
+                        help="run with minimal messages")
 
     return parser.parse_args()
 
