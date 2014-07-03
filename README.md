@@ -5,9 +5,7 @@ A simple python script to mirror all of an organization's github repositories.
 
 This script was designed to keep our local gitolite server in sync with
 repositories, but it will also let you just archive your github repositories
-locally.
-
-There is a little more background in this [medium post](https://medium.com/@vizowl/23002a10aefc).
+locally. There is a more background in this [medium post](https://medium.com/@vizowl/23002a10aefc).
 
 Getting started
 ===============
