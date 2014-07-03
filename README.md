@@ -31,11 +31,10 @@ Minimal examples
 
 ## Backup your private repositories to local storage
 
-First, generate a Github Personal Access Token, by going to Account settings > Applications on github.com. Hit the `Generate new token` button. The default permissions of `repo`, `public_repo`, and `user` are sufficient for the simple case. If you are using the webhooks, you will also need the `write:repo_hook` permission. Copy the generated key, a random string of characters like `becb84bde335a242707af71dae41a24f`. This key
-will need to be in the environment variable `GITHUB_OAUTH_TOKEN` when the command is run. 
-
 `GITHUB_OAUTH_TOKEN=becb84bde335a242707af71dae41a24f python github-mirror.py yourorganisation`
 
+First, generate a Github Personal Access Token, by going to Account settings > Applications on github.com. Hit the `Generate new token` button. The default permissions of `repo`, `public_repo`, and `user` are sufficient for the simple case. If you are using the webhooks, you will also need the `write:repo_hook` permission. Copy the generated key, a random string of characters like `becb84bde335a242707af71dae41a24f`. This key
+will need to be in the environment variable `GITHUB_OAUTH_TOKEN` when the command is run. 
 
 
 The usual warnings apply
