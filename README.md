@@ -38,6 +38,6 @@ The usual warnings apply
 ========================
 
 Some effort has been made to make the script work in a range of situations, however
-it has only been ested in our specific usecase - mirroring an organisation's
+it has only been tested in our specific usecase - mirroring an organisation's
 private repositories to a local Gitolite mirror. We are all care, no responsibility. Please
 make sure you understand what the script does before letting it loose.
