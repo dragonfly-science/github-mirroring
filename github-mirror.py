@@ -73,8 +73,8 @@ def getargs():
     parser.add_argument('--webhook-url',
                         help='url for github webhook notifications')
     parser.add_argument('--webhook-content-type',
-                        default='application/x-www-form-urlencoded',
-                        help='content type for github webhook, [application/x-www-form-urlencoded]')
+                        default='form',
+                        help='content type for github webhook, [form]')
     parser.add_argument('--webhook-events',
                         default='push',
                         nargs='+',
