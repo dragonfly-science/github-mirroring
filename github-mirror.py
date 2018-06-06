@@ -90,6 +90,10 @@ def getargs():
                         default=8,
                         type=int,
                         help='maximum number of job threads')
+    parser.add_argument('--num-repos',
+                        default=1000,
+                        type=int,
+                        help='number of repositories to mirror (max 1000)')
 
     return parser.parse_args()
 
@@ -125,7 +129,7 @@ def setup(args):
 def get_github_repositories(args):
     'Checks to see if there are any new repositories'
     # if you have more than 1000 repoes this won't work ...
-    payload = {'per_page': 1000, 'type': args.repository_type}
+    payload = {'per_page': args.num_repos, 'type': args.repository_type}
     if args.repository_type in ('private', 'all'):
         if not TOKEN:
             raise MirrorError(
