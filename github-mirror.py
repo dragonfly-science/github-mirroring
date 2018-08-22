@@ -133,7 +133,7 @@ def get_github_repositories(args):
     if args.repository_type in ('private', 'all'):
         if not TOKEN:
             raise MirrorError(
-                'The environment vairable GITHUB_OAUTH_TOKEN must be set access private repositories')
+                'The environment vairable GITHUB_OAUTH_TOKEN must be set to access private repositories')
         payload['access_token'] = TOKEN
     if args.github_access != 'user':
         target = 'orgs/%s' % args.entity
@@ -181,7 +181,7 @@ def create_new_gitolite_repo(name, args):
                args.quiet)
         gitcmd('push origin master',
                admin_dir,
-               'Pushing updated gitolite condig',
+               'Pushing updated gitolite config',
                True)
 
 
