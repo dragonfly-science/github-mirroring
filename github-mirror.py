@@ -17,7 +17,8 @@ from itertools import izip_longest
 
 TOKEN = environ[
     'GITHUB_OAUTH_TOKEN'] if 'GITHUB_OAUTH_TOKEN' in environ else None
-
+GITLAB_API_TOKEN = environ[
+    'GITLAB_API_TOKEN'] if 'GITLAB_API_TOKEN' in environ else None
 
 class MirrorError(RuntimeError):
     pass
@@ -58,7 +59,7 @@ def getargs():
                         help='host to mirror to')
     parser.add_argument('--mirror-type', '-t',
                         default='gitolite',
-                        choices=['gitolite'],
+                        choices=['gitolite', 'gitlab'],
                         help='mirror type [gitolite]')
     parser.add_argument('--repository-type', '-r',
                         choices=['private', 'public', 'all', 'owner'],
@@ -184,6 +185,14 @@ def create_new_gitolite_repo(name, args):
                'Pushing updated gitolite config',
                True)
 
+def create_new_repo(name, args, type=None):
+    if args.mirror_type == 'gitlab':
+        return args.gitlab.create_project(name)
+    if args.mirror_type == 'gitolite':
+        if type == 'wiki':
+            name += '.wiki'
+        return create_new_gitolite_repo(name + '.git', args)
+    raise MirrorError('Unknown repo type')
 
 def update_mirror(name, args, wiki=False):
     wdir = join(repo_dir(args), name + '.git')
@@ -267,11 +276,14 @@ def mirror_repo(repo, args, msgs):
         wiki_url = get_github_wiki_url(clone_url, repo['name'], args)
 
         # check to see if a new mirror repository needs to be created
-        if args.mirror_host and args.mirror_type == 'gitolite':
-            create_new_gitolite_repo(repo['name'] + '.git', args)
+        if args.mirror_host:
+            create_new_repo(repo['name'], args)
 
             if wiki_url:
-                create_new_gitolite_repo(repo['name'] + '.wiki.git', args)
+                create_new_repo(repo['name'], args, type='wiki')
+
+        if args.mirror_type == "gitlab":
+            return
 
         # install the webhook if required
         if args.webhook_url:
@@ -311,6 +323,48 @@ def mirror_repo(repo, args, msgs):
     except MirrorError as e:
         msgs.put(e.message)
 
+class GitlabHost(object):
+
+    def __init__(self, args):
+        self.args = args
+        self.host = args.mirror_host.replace("git@", "")
+        self.api_base = "https://%s/api/v4" % self.host
+        self.namespace_id = self.get_namespace_id()
+        self.projects = self.api_get("/projects")
+
+    def api_get(self, url):
+        auth_url = self.api_base + url + "?private_token=%s" % GITLAB_API_TOKEN
+        response = requests.get(auth_url)
+        if response.status_code not in (200, 201):
+            print("API request failed (%s), status %d" % (url, response.status_code))
+            return {}
+        return json.loads(response.content)
+
+    def api_post(self, url, data):
+        auth_url = self.api_base + url + "?private_token=%s" % GITLAB_API_TOKEN
+        response = requests.post(auth_url, data)
+        if response.status_code not in (200, 201):
+            print("API request failed (%s), status %d" % (url, response.status_code))
+            return {}
+        return json.loads(response.content)
+
+    def get_namespace_id(self):
+        namespaces = self.api_get("/namespaces")
+        for ns in namespaces:
+            if ns['name'] == self.args.entity:
+                return ns['id']
+        return
+
+    def get_project(self, name):
+        for p in self.projects:
+            if p['name'] == name:
+                return p
+
+    def create_project(self, name):
+        if self.get_project(name):
+            return
+        return self.api_post("/projects", dict(name=name, namespace_id=self.namespace_id))
+
 if __name__ == '__main__':
     try:
         args = getargs()
@@ -319,6 +373,9 @@ if __name__ == '__main__':
         msgs = Queue()
         if args.repo:
             repos = filter(lambda x: x['name'] == args.repo, repos)
+
+        if args.mirror_type == "gitlab":
+            args.gitlab = GitlabHost(args)
 
         # split list of repos into groups to limit the number of threads
         repo_sets = grouper(args.max_threads, repos)
