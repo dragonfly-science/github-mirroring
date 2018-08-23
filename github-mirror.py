@@ -213,7 +213,7 @@ def update_mirror(repo, args):
 
     remote_url = get_remote_url(args, name + '.wiki')
     wikidir = join(repo_dir(args), name + '.wiki.git')
-    git_push(remote_url, wikidir, name, args)
+    git_push(remote_url, wikidir, name + ' wiki', args)
 
 def install_webhook(repo, args):
     if not TOKEN:
@@ -275,7 +275,7 @@ def git_clone(url, dir, name, args):
 def git_push(url, dir, name, args):
     gitcmd(
         'push --mirror %s' % url, dir,
-        'Pushing latest version of %s from github to %s' % (name, args.mirror_host),
+        'Pushing latest version of %s from local folder to %s' % (name, args.mirror_host),
         args.quiet)
 
 def update_local(repo, args):
@@ -295,7 +295,7 @@ def update_local(repo, args):
     if exists(wikidir):
         git_fetch(wikidir, repo['full_name'] + ' wiki', args)
     else:
-        git_clone(args.wiki_url, base_dir, repo['full_name'], args)
+        git_clone(args.wiki_url, base_dir, repo['full_name'] + ' wiki', args)
 
 def mirror_repo(repo, args, msgs):
     try:
