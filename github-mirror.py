@@ -357,6 +357,8 @@ if __name__ == '__main__':
         msgs = Queue()
         if args.repo:
             repos = filter(lambda x: x['name'] == args.repo, repos)
+            if len(repos) < 1:
+                print("WARN: Repo %s not found in github" % args.repo)
 
         if args.mirror_host and args.mirror_type == "gitlab":
             args.gitlab = GitlabHost(args)
