@@ -199,7 +199,8 @@ def get_remote_url(args, name):
     if args.mirror_type == "gitolite":
         return '%s:%s' % (args.mirror_host, name + '.git')
     if args.mirror_type == "gitlab":
-        return '%s:%s/%s' % (args.mirror_host, args.entity, name + '.git')
+        repo_path = "%s/%s" % (args.entity, name.replace(".", "-")) # TODO Query api for path
+        return '%s:%s' % (args.mirror_host, repo_path + '.git')
 
 def update_mirror(repo, args):
     name = repo['name']
