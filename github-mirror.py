@@ -203,32 +203,17 @@ def get_remote_url(args, name):
 
 def update_mirror(repo, args):
     name = repo['name']
-    wiki = args.wiki_url is not None
-    wdir = join(repo_dir(args), name + '.git')
-    wikidir = join(repo_dir(args), name + '.wiki.git')
-    gitcmd(
-        'fetch -p origin', wdir,
-        'Fetching latest version of %s from github' % name, args.quiet)
-    if wiki:
-        gitcmd(
-            'fetch -p origin', wikidir,
-            'Fetching latest version of %s wiki from github' % name, args.quiet)
-
-    if not args.mirror_host:
-        return
 
     remote_url = get_remote_url(args, name)
-    gitcmd(
-        'push --mirror %s' % remote_url, wdir,
-        'Pushing latest version of %s from github to %s' % (name, args.mirror_host),
-        args.quiet)
+    wdir = join(repo_dir(args), name + '.git')
+    git_push(remote_url, wdir, name, args)
 
-    if wiki:
-        remote_url = get_remote_url(args, name + '.wiki')
-        gitcmd(
-            'push --mirror %s' % remote_url, wikidir,
-            'Pushing latest version of %s wiki from github to %s' % (name, args.mirror_host),
-            args.quiet)
+    if args.wiki_url is None:
+        return
+
+    remote_url = get_remote_url(args, name + '.wiki')
+    wikidir = join(repo_dir(args), name + '.wiki.git')
+    git_push(remote_url, wikidir, name, args)
 
 def install_webhook(repo, args):
     if not TOKEN:
@@ -272,10 +257,6 @@ def get_github_wiki_url(url, name, args):
         return None
     return wiki_url
 
-
-def local_repo(name, args):
-    return exists(join(repo_dir(args), name))
-
 def get_clone_url(repo, args):
     # add token to clone url
     clone_url = repo['clone_url']
@@ -283,28 +264,52 @@ def get_clone_url(repo, args):
         clone_url = clone_url.replace('https://', 'https://%s@' % TOKEN)
     return clone_url
 
-def clone_repo(repo, args):
-    if not local_repo(repo['name'] + '.git', args):
-        gitcmd(
-            'clone --mirror %s' % args.clone_url, repo_dir(args),
-            'Mirror cloning %s from github.com' % repo['full_name'], args.quiet)
-    if args.wiki_url and not local_repo(repo['name'] + '.wiki.git', args):
-        gitcmd(
-            'clone --mirror %s' % wiki_url, repo_dir(args),
-            'Mirror cloning wiki for %s from github.com' % repo['full_name'], args.quiet)
+def git_fetch(dir, name, args):
+    gitcmd(
+        'fetch -p origin', dir,
+        'Fetching latest version of %s from github' % name, args.quiet)
+
+def git_clone(url, dir, name, args):
+    gitcmd(
+        'clone --mirror %s' % url, dir,
+        'Mirror cloning %s from github.com' % name, args.quiet)
+
+def git_push(url, dir, name, args):
+    gitcmd(
+        'push --mirror %s' % url, dir,
+        'Pushing latest version of %s from github to %s' % (name, args.mirror_host),
+        args.quiet)
+
+def update_local(repo, args):
+    clone_url = get_clone_url(repo, args)
+    base_dir = repo_dir(args)
+    wdir = join(base_dir, repo['name'] + '.git')
+    if exists(wdir):
+        git_fetch(wdir, repo['full_name'], args)
+    else:
+        git_clone(clone_url, base_dir, repo['full_name'], args)
+
+    args.wiki_url = get_github_wiki_url(clone_url, repo['name'], args)
+    if not args.wiki_url:
+        return
+
+    wikidir = join(base_dir, repo['name'] + '.wiki.git')
+    if exists(wikidir):
+        git_fetch(wikidir, repo['full_name'] + ' wiki', args)
+    else:
+        git_clone(args.wiki_url, base_dir, repo['full_name'], args)
 
 def mirror_repo(repo, args, msgs):
-    args.clone_url = get_clone_url(repo, args)
-    args.wiki_url = get_github_wiki_url(args.clone_url, repo['name'], args)
     try:
-        if args.mirror_host:
-            create_new_repo(repo['name'], args)
+        update_local(repo, args)
 
         if args.webhook_url:
             install_webhook(repo, args)
 
-        clone_repo(repo, args)
-        update_mirror(repo, args)
+        if args.mirror_host:
+            create_new_repo(repo['name'], args)
+            update_mirror(repo, args)
+
     except MirrorError as e:
         msgs.put(e.message)
 
