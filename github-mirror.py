@@ -249,10 +249,8 @@ def install_webhook(repo, args):
 def get_github_wiki_url(url, name, args):
     wiki_url = re.sub('.git$', '.wiki.git', url)
     try:
-        gitcmd('ls-remote %s' % wiki_url,
-               '.',
-               'Checking for %s wiki' % name,
-               args.quiet)
+        gitcmd('ls-remote %s' % wiki_url, '.', 'Checking for %s wiki' % name, True)
+        print('INFO: Found wiki for %s' % name)
     except MirrorError:
         return None
     return wiki_url
