@@ -3,11 +3,13 @@ Mirrors repositories from github.com
 '''
 from __future__ import print_function
 import argparse
-import requests
 import json
-import sys
-import shlex
 import re
+import requests
+import shlex
+import sys
+import urllib
+
 from os.path import join, exists, isdir
 from os import environ, mkdir
 from subprocess import Popen, PIPE
@@ -202,12 +204,17 @@ def get_remote_url(args, name):
         repo_path = "%s/%s" % (args.entity, name.replace(".", "-")) # TODO Query api for path
         return '%s:%s' % (args.mirror_host, repo_path + '.git')
 
+def update_metadata(repo, args):
+    if args.mirror_type == "gitlab":
+        args.gitlab.update_metadata(repo)
+
 def update_mirror(repo, args):
     name = repo['name']
 
     remote_url = get_remote_url(args, name)
     wdir = join(repo_dir(args), name + '.git')
     git_push(remote_url, wdir, name, args)
+    update_metadata(repo, args)
 
     if args.wiki_url is None:
         return
@@ -319,22 +326,31 @@ class GitlabHost(object):
         self.host = args.mirror_host.replace("git@", "")
         self.api_base = "https://%s/api/v4" % self.host
         self.namespace_id = self.get_namespace_id()
-        self.projects = self.api_get("/projects")
+        self.projects = {p['name']: p for p in self.api_get("/projects")}
 
     def api_get(self, url):
-        auth_url = self.api_base + url + "?private_token=%s" % GITLAB_API_TOKEN
+        auth_url = self.api_base + url + "?private_token=%s&per_page=%d" % (GITLAB_API_TOKEN, self.args.num_repos)
         response = requests.get(auth_url)
         if response.status_code not in (200, 201):
-            print("API request failed (%s), status %d" % (url, response.status_code))
-            return {}
+            print("API get failed (%s), status %d" % (url, response.status_code))
+            raise MirrorError("Gitlab mirror api request failed")
         return json.loads(response.content)
 
     def api_post(self, url, data):
         auth_url = self.api_base + url + "?private_token=%s" % GITLAB_API_TOKEN
         response = requests.post(auth_url, data)
         if response.status_code not in (200, 201):
-            print("API request failed (%s), status %d" % (url, response.status_code))
-            return {}
+            print("API post failed (%s), status %d" % (url, response.status_code))
+            print(response.text)
+            raise MirrorError("Gitlab mirror api request failed")
+        return json.loads(response.content)
+
+    def api_put(self, url, data):
+        auth_url = self.api_base + url + "?private_token=%s" % GITLAB_API_TOKEN
+        response = requests.put(auth_url, data)
+        if response.status_code not in (200, 201):
+            print("API put failed (%s), status %d" % (url, response.status_code))
+            raise MirrorError("Gitlab mirror api request failed")
         return json.loads(response.content)
 
     def get_namespace_id(self):
@@ -344,14 +360,17 @@ class GitlabHost(object):
                 return ns['id']
         return
 
-    def get_project(self, name):
-        for p in self.projects:
-            if p['name'] == name:
-                return p
-
     def create_project(self, name):
-        if not self.get_project(name):
-            self.api_post("/projects", dict(name=name, namespace_id=self.namespace_id))
+        if not name in self.projects:
+            project = self.api_post("/projects", dict(name=name, namespace_id=self.namespace_id))
+            self.projects[project['name']] = project
+
+    def update_metadata(self, repo):
+        project = self.projects[repo['name']]
+        if repo['default_branch'] != project['default_branch']:
+            path = urllib.quote_plus("%s/%s" % (self.args.entity, project['name']))
+            data = dict(default_branch=repo['default_branch'])
+            self.projects[repo['name']] = self.api_put("/projects/%s" % path, data)
 
 if __name__ == '__main__':
     try:
