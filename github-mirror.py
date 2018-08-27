@@ -367,7 +367,8 @@ class GitlabHost(object):
     def update_metadata(self, repo):
         project = self.projects[repo['name']]
         if repo['default_branch'] != project['default_branch']:
-            path = urllib.quote_plus("%s/%s" % (self.args.entity, project['name']))
+            path = urllib.quote_plus("%s/%s" % (
+                self.args.entity, project['name'].replace(".", "-")))
             data = dict(default_branch=repo['default_branch'])
             self.projects[repo['name']] = self.api_put("/projects/%s" % path, data)
 
