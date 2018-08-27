@@ -333,7 +333,7 @@ class GitlabHost(object):
         response = requests.get(auth_url)
         if response.status_code not in (200, 201):
             print("API get failed (%s), status %d" % (url, response.status_code))
-            raise MirrorError("Gitlab mirror api request failed")
+            raise MirrorError("Gitlab mirror api request failed (%s)" % url)
         return json.loads(response.content)
 
     def api_post(self, url, data):
@@ -341,8 +341,7 @@ class GitlabHost(object):
         response = requests.post(auth_url, data)
         if response.status_code not in (200, 201):
             print("API post failed (%s), status %d" % (url, response.status_code))
-            print(response.text)
-            raise MirrorError("Gitlab mirror api request failed")
+            raise MirrorError("Gitlab mirror api request failed (%s)" % url)
         return json.loads(response.content)
 
     def api_put(self, url, data):
@@ -350,7 +349,7 @@ class GitlabHost(object):
         response = requests.put(auth_url, data)
         if response.status_code not in (200, 201):
             print("API put failed (%s), status %d" % (url, response.status_code))
-            raise MirrorError("Gitlab mirror api request failed")
+            raise MirrorError("Gitlab mirror api request failed (%s)" % url)
         return json.loads(response.content)
 
     def get_namespace_id(self):
